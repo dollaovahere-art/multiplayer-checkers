@@ -15,7 +15,7 @@ io.on('connection', (socket) => {
         currentRoom = roomCode.trim().toLowerCase();
         socket.join(currentRoom);
         if (!rooms[currentRoom]) {
-            rooms[currentRoom] = { red: null, black: null, userCount: 0, nextSpecNumber: 1 };
+            rooms[currentRoom] = { red: null, black: null, userCount: 0, nextSpecNumber: 1, currentBoardState: null };
         }
         rooms[currentRoom].userCount++;
         let assignedRole = 0; 
@@ -32,13 +32,26 @@ io.on('connection', (socket) => {
             mySpectatorNumber = rooms[currentRoom].nextSpecNumber++;
             identity = `Spectator ${mySpectatorNumber}`;
         }
-        socket.emit('assign-role', { role: assignedRole, specNum: mySpectatorNumber });
+        
+        // Tell the user their role AND send them the current saved board state if it exists
+        socket.emit('assign-role', { 
+            role: assignedRole, 
+            specNum: mySpectatorNumber,
+            savedBoard: rooms[currentRoom].currentBoardState 
+        });
+        
         io.to(currentRoom).emit('update-user-count', rooms[currentRoom].userCount);
         io.to(currentRoom).emit('receive-chat', { user: "System", text: `${identity} has joined the room.` });
     });
 
     socket.on('send-move', (moveData) => {
-        if (currentRoom) socket.to(currentRoom).emit('receive-move', moveData);
+        if (currentRoom && rooms[currentRoom]) {
+            // Save the updated board state matrix on the server memory
+            if (moveData.fullBoardArrayUpdate) {
+                rooms[currentRoom].currentBoardState = moveData.fullBoardArrayUpdate;
+            }
+            socket.to(currentRoom).emit('receive-move', moveData);
+        }
     });
 
     socket.on('send-chat', (messageText) => {
@@ -57,12 +70,16 @@ io.on('connection', (socket) => {
             if (rooms[currentRoom].red === socket.id) { rooms[currentRoom].red = null; identity = "Red"; }
             else if (rooms[currentRoom].black === socket.id) { rooms[currentRoom].black = null; identity = "Black"; }
             io.to(currentRoom).emit('receive-chat', { user: "System", text: `${identity} left the room.` });
-            io.to(currentRoom).emit('update-user-count', rooms[currentRoom].userCount);
+            if (rooms[currentRoom].userCount <= 0 && !rooms[currentRoom].red && !rooms[currentRoom].black) {
+                delete rooms[currentRoom];
+            } else {
+                io.to(currentRoom).emit('update-user-count', rooms[currentRoom].userCount);
+            }
         }
     });
 });
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log(`Server listening live on port ${PORT}`);
 });

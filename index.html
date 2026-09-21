@@ -121,8 +121,6 @@
     let isChainJumping = false;
     let blockedUsersList = [];
     let isChatGloballyMuted = false;
-
-    // Cache message logs so unblocking dynamically restores hidden items
     let allMessageHistoryCache = []; 
 
     function initializeNewBoardArray() {
@@ -142,7 +140,6 @@
         }
         isChainJumping = false;
     }
-    initializeNewBoardArray(); 
 
     function joinRoom() {
         const input = document.getElementById('room-input').value;
@@ -152,6 +149,7 @@
         socket.emit('join-room', input);
     }
 
+    // FIXED: Now catches the 'savedBoard' if a game is already in progress
     socket.on('assign-role', (data) => {
         myRole = data.role;
         mySpecNum = data.specNum;
@@ -159,6 +157,13 @@
         if (myRole === 1) roleInfo.innerHTML = "Your Arena Role: <span style='color:#ff6b6b;'>RED (Player 1)</span>";
         else if (myRole === 2) roleInfo.innerHTML = "Your Arena Role: <span style='color:#a2a2a2;'>BLACK (Player 2)</span>";
         else roleInfo.innerHTML = `Your Arena Role: <span style='color:#4ea8de;'>SPECTATOR ${mySpecNum}</span>`;
+        
+        if (data.savedBoard) {
+            board = data.savedBoard; // Load the in-progress board array state maps
+        } else {
+            initializeNewBoardArray(); // Fallback to normal if brand new room
+        }
+        
         updateStatusDisplay(); createBoardGrid();
     });
 
@@ -180,34 +185,26 @@
         const form = document.getElementById('chat-form');
 
         if (isChatGloballyMuted) {
-            btn.innerText = "🔊 Turn On Chat";
-            btn.classList.add('disabled-state');
-            box.classList.add('hidden-stream');
-            placeholder.classList.add('active-placeholder');
+            btn.innerText = "🔊 Turn On Chat"; btn.classList.add('disabled-state');
+            box.classList.add('hidden-stream'); placeholder.classList.add('active-placeholder');
             form.classList.add('muted-form');
         } else {
-            btn.innerText = "Mute Chat Box";
-            btn.classList.remove('disabled-state');
-            box.classList.remove('hidden-stream');
-            placeholder.classList.remove('active-placeholder');
+            btn.innerText = "Mute Chat Box"; btn.classList.remove('disabled-state');
+            box.classList.remove('hidden-stream'); placeholder.classList.remove('active-placeholder');
             form.classList.remove('muted-form');
         }
     }
 
-    // FIXED: Toggle click now smoothly handles blocking AND unblocking instantly
     function toggleBlockUserLabel(userLabel) {
         if (userLabel === "System") return;
-        
         let myName = myRole === 1 ? "Red" : myRole === 2 ? "Black" : `Spectator ${mySpecNum}`;
-        if (userLabel === myName) return; // Can't block yourself
+        if (userLabel === myName) return;
 
         if (blockedUsersList.includes(userLabel)) {
             blockedUsersList = blockedUsersList.filter(u => u !== userLabel);
             alert(`🔓 Unblocked messages from: ${userLabel}`);
         } else {
-            if (confirm(`Block all incoming messages from ${userLabel}?`)) {
-                blockedUsersList.push(userLabel);
-            }
+            if (confirm(`Block all incoming messages from ${userLabel}?`)) { blockedUsersList.push(userLabel); }
         }
         rebuildChatWindowFromCache();
     }
@@ -217,11 +214,8 @@
         const chatBox = document.getElementById('chat-box');
         const messageRow = document.createElement('div');
         messageRow.classList.add('chat-row');
-        
-        if (user === "System") { 
-            messageRow.innerHTML = `<span class="chat-system">⚙️ ${text}</span>`; 
-        } else {
-            let isSpec = user.startsWith("Spectator");
+        if (user === "System") { messageRow.innerHTML = `<span class="chat-system">⚙️ ${text}</span>`; } 
+        else {
             let styleClass = user === "Red" ? "chat-red" : user === "Black" ? "chat-black" : "chat-spec";
             messageRow.innerHTML = `<span class="${styleClass} clickable-sender" onclick="toggleBlockUserLabel('${user}')" title="Click to block/unblock">${user}:</span> ${text}`;
         }
@@ -230,9 +224,7 @@
 
     function rebuildChatWindowFromCache() {
         document.getElementById('chat-box').innerHTML = '';
-        allMessageHistoryCache.forEach(msg => {
-            appendMessageToBox(msg.user, msg.text);
-        });
+        allMessageHistoryCache.forEach(msg => { appendMessageToBox(msg.user, msg.text); });
     }
 
     function sendChatMessage(e) {
@@ -240,13 +232,11 @@
         const input = document.getElementById('chat-input');
         const text = input.value.trim();
         if (!text) return;
-        socket.emit('send-chat', text); 
-        input.value = '';
+        socket.emit('send-chat', text); input.value = '';
     }
 
     socket.on('receive-chat', (data) => {
-        allMessageHistoryCache.push(data); // Save everything to cache
-        appendMessageToBox(data.user, data.text);
+        allMessageHistoryCache.push(data); appendMessageToBox(data.user, data.text);
     });
 
     function updateStatusDisplay() {
@@ -297,7 +287,9 @@
                         if(!move) return;
                         const from = { r: selectedPiece.r, c: selectedPiece.c }; const to = { r, c };
                         let localChainActive = processMoveChainState(from, to, move);
-                        socket.emit('send-move', { from, to, move, externalChainState: localChainActive });
+                        
+                        // FIXED: Automatically broadcasts the full updated array matrix snapshot
+                        socket.emit('send-move', { from, to, move, externalChainState: localChainActive, fullBoardArrayUpdate: board });
                     };
                     square.addEventListener('click', handleDestinationClick);
                     square.addEventListener('touchstart', handleDestinationClick, {passive: false});
@@ -336,7 +328,6 @@
         let piece = board[from.r][from.c];
         if (to.r === 0 && piece === 1) piece = 3;
         if (to.r === 7 && piece === 2) piece = 4;
-        
         board[to.r][to.c] = piece; board[from.r][from.c] = 0;
         if (move.isJump) board[move.removeR][move.removeC] = 0;
 
@@ -395,7 +386,9 @@
     function requestReset() {
         if (confirm("Are you sure you want to clear the board and reset the match?")) {
             socket.emit('send-chat', "🔄 Has requested a board reset layout!");
-            resetLocalBoard(); socket.emit('send-move', { isResetRequest: true });
+            resetLocalBoard(); 
+            // FIXED: Resets server cache parameters upon clean game reload
+            socket.emit('send-move', { isResetRequest: true, fullBoardArrayUpdate: null });
         }
     }
 </script>
