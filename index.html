@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Multiplayer Checkers</title>
     <style>
         body { font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #f0f0f0; margin: 0; padding: 10px; }
@@ -12,16 +12,21 @@
         #game-container { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 900px; }
         .app-layout { display: flex; flex-direction: column; gap: 20px; width: 100%; margin-top: 10px; }
         @media(min-width: 750px) { .app-layout { flex-direction: row; justify-content: center; } }
-        #board { display: grid; grid-template-columns: repeat(8, 45px); grid-template-rows: repeat(8, 45px); border: 4px solid #333; background-color: #b58863; }
+        
+        /* Fixed mobile tapping latency with touch-action */
+        #board { display: grid; grid-template-columns: repeat(8, 42px); grid-template-rows: repeat(8, 42px); border: 4px solid #333; background-color: #b58863; touch-action: manipulation; }
         @media(min-width: 550px) { #board { grid-template-columns: repeat(8, 60px); grid-template-rows: repeat(8, 60px); } }
-        .square { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
+        
+        .square { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; touch-action: manipulation; }
         .light { background-color: #f0d9b5; }
         .dark { background-color: #b58863; }
-        .piece { width: 80%; height: 80%; border-radius: 50%; cursor: pointer; display: flex; justify-content: center; align-items: center; font-weight: bold; color: white; box-shadow: inset 0 0 8px rgba(0,0,0,0.6); }
+        
+        .piece { width: 80%; height: 80%; border-radius: 50%; cursor: pointer; display: flex; justify-content: center; align-items: center; font-weight: bold; color: white; box-shadow: inset 0 0 8px rgba(0,0,0,0.6); touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
         .red-piece { background-color: #cc0000; }
         .black-piece { background-color: #1a1a1a; }
         .selected { border: 3px solid #76ff03; box-sizing: border-box; }
         .highlight { background-color: #bbf7d0 !important; cursor: pointer; border: 2px dashed #28a745; box-sizing: border-box; }
+        
         #chat-container { width: 100%; max-width: 320px; background: white; border: 2px solid #333; border-radius: 4px; display: flex; flex-direction: column; height: 380px; }
         #chat-box { flex: 1; padding: 10px; overflow-y: auto; font-size: 14px; background: #fafafa; }
         .chat-row { margin-bottom: 8px; line-height: 1.4; word-break: break-all; }
@@ -30,8 +35,8 @@
         .chat-black { color: #1a1a1a; font-weight: bold; }
         .chat-spec { color: #007bff; font-weight: bold; }
         #chat-form { display: flex; border-top: 1px solid #ccc; }
-        #chat-input { flex: 1; padding: 10px; border: none; font-size: 14px; }
-        #chat-send { padding: 10px; background: #28a745; color: white; border: none; cursor: pointer; font-weight: bold; }
+        #chat-input { padding: 10px; border: none; font-size: 14px; width: 70%; }
+        #chat-send { width: 30%; background: #28a745; color: white; border: none; cursor: pointer; font-weight: bold; }
         #status, #role-info { font-size: 18px; font-weight: bold; margin: 5px; text-align: center; }
         #reset-btn { margin: 10px; padding: 8px 16px; background-color: #dc3545; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; display: inline-block; }
         #win-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 100; }
@@ -74,24 +79,23 @@
     let selectedPiece = null; let validMoves = [];
     let board = [];
 
-    // Automatically generate clean checker positions layout mathematically
     function initializeNewBoardArray() {
         board = [];
         for (let r = 0; r < 8; r++) {
             let row = [];
             for (let c = 0; c < 8; c++) {
                 if ((r + c) % 2 === 1) {
-                    if (r < 3) row.push(2);       // Black pieces top
-                    else if (r > 4) row.push(1);  // Red pieces bottom
-                    else row.push(0);             // Middle open squares
+                    if (r < 3) row.push(2);       
+                    else if (r > 4) row.push(1);  
+                    else row.push(0);             
                 } else {
-                    row.push(0);                  // Light square empty
+                    row.push(0);                  
                 }
             }
             board.push(row);
         }
     }
-    initializeNewBoardArray(); // Setup initial grid layout instantly
+    initializeNewBoardArray(); 
 
     function joinRoom() {
         const input = document.getElementById('room-input').value;
@@ -148,26 +152,38 @@
                 const square = document.createElement('div');
                 square.classList.add('square', (r + c) % 2 === 0 ? 'light' : 'dark');
                 const pieceType = board[r][c];
+                
                 if (pieceType !== 0) {
                     const piece = document.createElement('div');
                     piece.classList.add('piece', pieceType === 1 || pieceType === 3 ? 'red-piece' : 'black-piece');
                     if (pieceType === 3 || pieceType === 4) piece.innerText = 'K';
                     if (selectedPiece && selectedPiece.r === r && selectedPiece.c === c) piece.classList.add('selected');
-                    piece.addEventListener('click', (e) => {
+                    
+                    // Unified event execution logic structure for both screens
+                    const handleSelect = (e) => {
+                        e.preventDefault();
                         e.stopPropagation();
                         if (turn === myRole && ((myRole === 1 && (pieceType===1||pieceType===3)) || (myRole === 2 && (pieceType===2||pieceType===4)))) {
                             selectedPiece = { r, c }; validMoves = calculatePieceMoves(r, c); createBoardGrid();
                         }
-                    });
+                    };
+                    piece.addEventListener('click', handleSelect);
+                    piece.addEventListener('touchstart', handleSelect, {passive: false});
                     square.appendChild(piece);
                 }
+                
                 if (validMoves.some(m => m.toR === r && m.toC === c)) {
                     square.classList.add('highlight');
-                    square.addEventListener('click', () => {
+                    const handleDestinationClick = (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
                         const move = validMoves.find(m => m.toR === r && m.toC === c);
+                        if(!move) return;
                         const from = { r: selectedPiece.r, c: selectedPiece.c }; const to = { r, c };
                         executeBoardMove(from, to, move); socket.emit('send-move', { from, to, move });
-                    });
+                    };
+                    square.addEventListener('click', handleDestinationClick);
+                    square.addEventListener('touchstart', handleDestinationClick, {passive: false});
                 }
                 boardElement.appendChild(square);
             }
@@ -177,8 +193,9 @@
     function calculatePieceMoves(r, c) {
         const piece = board[r][c]; const moves = []; let directions = [];
         if (piece === 1) directions = [[-1, -1], [-1, 1]];
-        if (piece === 2) directions = [[1, -1], [1, 1]]; // Fixed: Allow black moving down correctly
+        if (piece === 2) directions = [[1, -1], [1, 1]]; 
         if (piece === 3 || piece === 4) directions = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
+        
         directions.forEach(([dr, dc]) => {
             const nextR = r + dr, nextC = c + dc;
             if (nextR >= 0 && nextR < 8 && nextC >= 0 && nextC < 8) {
