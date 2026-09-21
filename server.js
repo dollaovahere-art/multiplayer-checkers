@@ -4,63 +4,73 @@ const { Server } = require('socket.io');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, {
-    cors: { origin: "*" } // Allows phones, tablets, and laptops to connect smoothly
-});
+const io = new Server(server, { cors: { origin: "*" } });
 
-// Automatically serve your index.html file
 app.use(express.static(__dirname));
 
-let players = {
-    red: null,   // Holds socket.id of Player 1
-    black: null  // Holds socket.id of Player 2
-};
+let rooms = {};
 
 io.on('connection', (socket) => {
-    console.log(`User connected: ${socket.id}`);
+    let currentRoom = null;
 
-    // Assign available roles dynamically
-    let assignedRole = 0; // 0 = Spectator, 1 = Red, 2 = Black
+    socket.on('join-room', (roomCode) => {
+        currentRoom = roomCode.trim().toLowerCase();
+        socket.join(currentRoom);
 
-    if (!players.red) {
-        players.red = socket.id;
-        assignedRole = 1;
-        console.log(`Assigned ${socket.id} to RED (Player 1)`);
-    } else if (!players.black) {
-        players.black = socket.id;
-        assignedRole = 2;
-        console.log(`Assigned ${socket.id} to BLACK (Player 2)`);
-    } else {
-        console.log(`Room full. ${socket.id} joined as a SPECTATOR`);
-    }
+        if (!rooms[currentRoom]) {
+            rooms[currentRoom] = { red: null, black: null };
+        }
 
-    // Tell the client which role they received
-    socket.emit('assign-role', assignedRole);
+        let assignedRole = 0; // Spectator
 
-    // Relay move updates to the opponent in real-time
-    socket.on('send-move', (moveData) => {
-        socket.broadcast.emit('receive-move', moveData);
+        if (!rooms[currentRoom].red) {
+            rooms[currentRoom].red = socket.id;
+            assignedRole = 1;
+        } else if (!rooms[currentRoom].black) {
+            rooms[currentRoom].black = socket.id;
+            assignedRole = 2;
+        }
+
+        socket.emit('assign-role', assignedRole);
+        
+        let identity = assignedRole === 1 ? "Red (Player 1)" : assignedRole === 2 ? "Black (Player 2)" : "A Spectator";
+        io.to(currentRoom).emit('receive-chat', { user: "System", text: `${identity} has joined the room.` });
     });
 
-    // Handle user disconnects and free up slots instantly
+    socket.on('send-move', (moveData) => {
+        if (currentRoom) {
+            socket.to(currentRoom).emit('receive-move', moveData);
+        }
+    });
+
+    // FIXED: This now relays the message to everyone in the room perfectly
+    socket.on('send-chat', (messageText) => {
+        if (currentRoom) {
+            let senderRole = "Spectator";
+            if (rooms[currentRoom]?.red === socket.id) senderRole = "Red";
+            if (rooms[currentRoom]?.black === socket.id) senderRole = "Black";
+
+            io.to(currentRoom).emit('receive-chat', { user: senderRole, text: messageText });
+        }
+    });
+
     socket.on('disconnect', () => {
-        console.log(`User disconnected: ${socket.id}`);
-        if (players.red === socket.id) {
-            players.red = null;
-            console.log("RED slot is now vacant.");
-        } else if (players.black === socket.id) {
-            players.black = null;
-            console.log("BLACK slot is now vacant.");
+        if (currentRoom && rooms[currentRoom]) {
+            if (rooms[currentRoom].red === socket.id) {
+                rooms[currentRoom].red = null;
+                io.to(currentRoom).emit('receive-chat', { user: "System", text: "Red Player left. Slot is vacant!" });
+            } else if (rooms[currentRoom].black === socket.id) {
+                rooms[currentRoom].black = null;
+                io.to(currentRoom).emit('receive-chat', { user: "System", text: "Black Player left. Slot is vacant!" });
+            }
+            if (!rooms[currentRoom].red && !rooms[currentRoom].black) {
+                delete rooms[currentRoom];
+            }
         }
     });
 });
 
 const PORT = process.env.PORT || 3000;
-// '0.0.0.0' exposes the server to your local home network (Wi-Fi)
 server.listen(PORT, '0.0.0.0', () => {
-    console.log(`\n======================================================`);
-    console.log(`🚀 Checkers server is running!`);
-    console.log(`💻 On your laptop, open: http://localhost:${PORT}`);
-    console.log(`📱 On phones/tablets, use your laptop's local IP address`);
-    console.log(`======================================================\n`);
+    console.log(`Server listening live on port ${PORT}`);
 });

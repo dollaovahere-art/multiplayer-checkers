@@ -7,41 +7,28 @@
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #1e1e24; color: #f5f5f7; margin: 0; padding: 10px; box-sizing: border-box; }
         h2 { margin: 5px 0 15px 0; color: #4ea8de; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
-        
         #lobby-container { margin-top: 80px; text-align: center; background: #2a2a35; padding: 35px; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); border: 1px solid #3a3a4a; max-width: 400px; width: 90%; }
         #room-input { padding: 12px; font-size: 16px; width: 220px; border: 2px solid #4a4a5a; background: #1e1e24; color: white; border-radius: 6px; outline: none; transition: border 0.3s; }
         #room-input:focus { border-color: #4ea8de; }
         #join-btn { padding: 12px 24px; font-size: 16px; background-color: #0077b6; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); transition: background 0.2s; }
         #join-btn:hover { background-color: #0096c7; }
-        
         #game-container { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 950px; }
         .app-layout { display: flex; flex-direction: column; gap: 20px; width: 100%; margin-top: 10px; align-items: center; }
         @media(min-width: 800px) { .app-layout { flex-direction: row; justify-content: center; align-items: flex-start; } }
-        
         #board { display: grid; grid-template-columns: repeat(8, 42px); grid-template-rows: repeat(8, 42px); border: 8px solid #3d2314; border-radius: 8px; box-shadow: 0 12px 36px rgba(0,0,0,0.6); touch-action: manipulation; }
         @media(min-width: 550px) { #board { grid-template-columns: repeat(8, 65px); grid-template-rows: repeat(8, 65px); border-width: 12px; } }
-        
         .square { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; touch-action: manipulation; }
         .light { background-color: #eadeca; background-image: radial-gradient(rgba(0,0,0,0.03) 1px, transparent 0); background-size: 8px 8px; }
         .dark { background-color: #704214; box-shadow: inset 0 0 12px rgba(0,0,0,0.2); }
-        
         .piece { width: 84%; height: 84%; border-radius: 50%; cursor: pointer; display: flex; justify-content: center; align-items: center; font-weight: 900; font-size: 20px; color: rgba(255,255,255,0.8); box-shadow: 0 6px 10px rgba(0,0,0,0.5), inset 0 2px 4px rgba(255,255,255,0.3), inset 0 -4px 6px rgba(0,0,0,0.4); touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: transform 0.2s, box-shadow 0.2s; position: relative; }
         .piece:active { transform: scale(0.95); }
-        
         .red-piece { background: radial-gradient(circle at 35% 35%, #ff4d4d, #b30000); border: 2px solid #800000; }
         .black-piece { background: radial-gradient(circle at 35% 35%, #4a4a4a, #111111); border: 2px solid #000000; }
-        
         .piece.king::before { content: '👑'; font-size: 18px; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.6)); color: #ffd700; }
         @media(min-width: 550px) { .piece.king::before { font-size: 24px; } }
-        
         .selected { transform: translateY(-4px) scale(1.05); box-shadow: 0 12px 20px rgba(0,0,0,0.6), 0 0 12px #76ff03, inset 0 2px 4px rgba(255,255,255,0.4); border-color: #76ff03; z-index: 10; }
         .highlight { background-color: #2a5a3a !important; cursor: pointer; border: 3px dashed #76ff03; box-sizing: border-box; animation: pulseGlow 1.5s infinite alternate; }
-        
-        @keyframes pulseGlow {
-            0% { box-shadow: inset 0 0 8px rgba(118,255,3,0.3); }
-            100% { box-shadow: inset 0 0 18px rgba(118,255,3,0.7); }
-        }
-        
+        @keyframes pulseGlow { 0% { box-shadow: inset 0 0 8px rgba(118,255,3,0.3); } 100% { box-shadow: inset 0 0 18px rgba(118,255,3,0.7); } }
         #chat-container { width: 100%; max-width: 340px; background: #2a2a35; border: 2px solid #3a3a4a; border-radius: 8px; display: flex; flex-direction: column; height: 390px; box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
         #chat-box { flex: 1; padding: 12px; overflow-y: auto; font-size: 14px; background: #1e1e24; border-radius: 6px 6px 0 0; margin: 6px; border: 1px solid #2d2d3d; }
         .chat-row { margin-bottom: 8px; line-height: 1.4; word-break: break-all; }
@@ -54,12 +41,10 @@
         #chat-input:focus { border-color: #4ea8de; }
         #chat-send { width: 25%; background: #2a9d8f; color: white; border: none; cursor: pointer; font-weight: bold; border-radius: 4px; margin-left: auto; transition: background 0.2s; }
         #chat-send:hover { background: #e76f51; }
-        
         #role-info { font-size: 15px; color: #b5b5c3; margin: 2px; letter-spacing: 0.5px; }
         #status { font-size: 20px; font-weight: bold; margin: 4px; color: #ffffff; min-height: 28px; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
         #reset-btn { margin: 10px 0 15px 0; padding: 10px 20px; background-color: #e63946; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; display: inline-block; box-shadow: 0 4px 10px rgba(230,57,70,0.3); transition: background 0.2s, transform 0.1s; }
         #reset-btn:active { transform: scale(0.97); }
-        
         #win-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.75); justify-content: center; align-items: center; z-index: 100; backdrop-filter: blur(4px); }
         .modal-content { background-color: #2a2a35; border: 2px solid #4ea8de; padding: 35px; border-radius: 12px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); max-width: 400px; width: 85%; }
         .modal-content h2 { margin-top: 0; color: #2a9d8f; font-size: 32px; }
@@ -68,7 +53,6 @@
     <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
-    <!-- LOBBY SCREEN -->
     <div id="lobby-container">
         <h2>⚔️ Checkers Multiplayer Arena</h2>
         <p style="color: #b5b5c3; font-size: 14px; margin-bottom: 20px;">Enter a secret code below to synchronize your session board with an opponent:</p>
@@ -76,13 +60,10 @@
         <br>
         <button id="join-btn" onclick="joinRoom()">Enter Arena Room</button>
     </div>
-
-    <!-- MAIN GAMEPLAY SCREEN -->
     <div id="game-container">
         <div id="role-info">Establishing connection...</div>
         <div id="status">Waiting for opponent to connect</div>
         <button id="reset-btn" onclick="requestReset()">🔄 Reset Arena Match</button>
-        
         <div class="app-layout">
             <div id="board"></div>
             <div id="chat-container">
@@ -94,8 +75,6 @@
             </div>
         </div>
     </div>
-
-    <!-- WINDOW POPUP -->
     <div id="win-modal">
         <div class="modal-content">
             <h2 id="win-title">🏆 Match Terminated</h2>
@@ -103,6 +82,7 @@
             <button id="join-btn" style="margin: 0; background-color: #4a4a5a;" onclick="closeModal()">Dismiss Window</button>
         </div>
     </div>
+
 <script>
     const socket = io();
     let myRole = 0; let turn = 1;   
@@ -151,170 +131,5 @@
         else { executeBoardMove(moveData.from, moveData.to, moveData.move, moveData.externalChainState); }
     });
 
-    socket.on('receive-chat', (data) => {
+    function appendMessageToBox(user, text) {
         const chatBox = document.getElementById('chat-box');
-        const messageRow = document.createElement('div');
-        messageRow.classList.add('chat-row');
-        if (data.user === "System") { messageRow.innerHTML = `<span class="chat-system">⚙️ ${data.text}</span>`; } 
-        else {
-            let styleClass = data.user === "Red" ? "chat-red" : data.user === "Black" ? "chat-black" : "chat-spec";
-            messageRow.innerHTML = `<span class="${styleClass}">${data.user}:</span> ${data.text}`;
-        }
-        chatBox.appendChild(messageRow); chatBox.scrollTop = chatBox.scrollHeight;
-    });
-
-    function sendChatMessage(e) {
-        e.preventDefault();
-        const input = document.getElementById('chat-input');
-        if (!input.value.trim()) return;
-        socket.emit('send-chat', input.value); input.value = '';
-    }
-
-    function updateStatusDisplay() {
-        const statText = document.getElementById('status');
-        if (isChainJumping) {
-            statText.innerText = (turn === myRole) ? "Chaining Jumps! (CONTINUE CAPTURING)" : "Opponent is compounding jumps...";
-        } else {
-            if (turn === 1) statText.innerText = "Turn: Red's Move" + (myRole === 1 ? " (YOUR TURN)" : "");
-            else statText.innerText = "Turn: Black's Move" + (myRole === 2 ? " (YOUR TURN)" : "");
-        }
-    }
-    function createBoardGrid() {
-        const boardElement = document.getElementById('board'); boardElement.innerHTML = '';
-        for (let r = 0; r < 8; r++) {
-            for (let c = 0; c < 8; c++) {
-                const square = document.createElement('div');
-                square.classList.add('square', (r + c) % 2 === 0 ? 'light' : 'dark');
-                const pieceType = board[r][c];
-                
-                if (pieceType !== 0) {
-                    const piece = document.createElement('div');
-                    piece.classList.add('piece');
-                    piece.classList.add(pieceType === 1 || pieceType === 3 ? 'red-piece' : 'black-piece');
-                    if (pieceType === 3 || pieceType === 4) piece.classList.add('king');
-                    if (selectedPiece && selectedPiece.r === r && selectedPiece.c === c) piece.classList.add('selected');
-                    
-                    const handleSelect = (e) => {
-                        e.preventDefault(); e.stopPropagation();
-                        if (isChainJumping) return; 
-                        if (turn === myRole && ((myRole === 1 && (pieceType===1||pieceType===3)) || (myRole === 2 && (pieceType===2||pieceType===4)))) {
-                            selectedPiece = { r, c }; validMoves = calculatePieceMoves(r, c); createBoardGrid();
-                        }
-                    };
-                    piece.addEventListener('click', handleSelect);
-                    piece.addEventListener('touchstart', handleSelect, {passive: false});
-                    square.appendChild(piece);
-                }
-                
-                if (validMoves.some(m => m.toR === r && m.toC === c)) {
-                    square.classList.add('highlight');
-                    const handleDestinationClick = (e) => {
-                        e.preventDefault(); e.stopPropagation();
-                        const move = validMoves.find(m => m.toR === r && m.toC === c);
-                        if(!move) return;
-                        const from = { r: selectedPiece.r, c: selectedPiece.c }; const to = { r, c };
-                        let localChainActive = processMoveChainState(from, to, move);
-                        socket.emit('send-move', { from, to, move, externalChainState: localChainActive });
-                    };
-                    square.addEventListener('click', handleDestinationClick);
-                    square.addEventListener('touchstart', handleDestinationClick, {passive: false});
-                }
-                boardElement.appendChild(square);
-            }
-        }
-    }
-
-    function calculatePieceMoves(r, c) {
-        const piece = board[r][c]; const moves = []; let directions = [];
-        if (piece === 1) directions = [[-1, -1], [-1, 1]];
-        if (piece === 2) directions = [[1, -1], [1, 1]]; 
-        if (piece === 3 || piece === 4) directions = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
-        
-        directions.forEach(([dr, dc]) => {
-            const nextR = r + dr, nextC = c + dc;
-            if (nextR >= 0 && nextR < 8 && nextC >= 0 && nextC < 8) {
-                if (board[nextR][nextC] === 0) { 
-                    if (!isChainJumping) moves.push({ toR: nextR, toC: nextC, isJump: false }); 
-                } else {
-                    const enemy = board[nextR][nextC];
-                    if ((turn === 1 && (enemy === 2 || enemy === 4)) || (turn === 2 && (enemy === 1 || enemy === 3))) {
-                        const jumpR = nextR + dr, jumpC = nextC + dc;
-                        if (jumpR >= 0 && jumpR < 8 && jumpC >= 0 && jumpC < 8 && board[jumpR][jumpC] === 0) {
-                            moves.push({ toR: jumpR, toC: jumpC, isJump: true, removeR: nextR, removeC: nextC });
-                        }
-                    }
-                }
-            }
-        });
-        return moves;
-    }
-
-    function processMoveChainState(from, to, move) {
-        let piece = board[from.r][from.c];
-        if (to.r === 0 && piece === 1) piece = 3;
-        if (to.r === 7 && piece === 2) piece = 4;
-        
-        board[to.r][to.c] = piece; board[from.r][from.c] = 0;
-        if (move.isJump) board[move.removeR][move.removeC] = 0;
-
-        if (move.isJump) {
-            selectedPiece = { r: to.r, c: to.c };
-            let subJumps = calculatePieceMoves(to.r, to.c).filter(m => m.isJump);
-            if (subJumps.length > 0) {
-                isChainJumping = true; validMoves = subJumps;
-                updateStatusDisplay(); createBoardGrid(); return true; 
-            }
-        }
-        isChainJumping = false; selectedPiece = null; validMoves = []; 
-        turn = turn === 1 ? 2 : 1;
-        updateStatusDisplay(); createBoardGrid(); checkWinCondition(); return false;
-    }
-
-    function executeBoardMove(from, to, move, externalChainState) {
-        let piece = board[from.r][from.c];
-        if (to.r === 0 && piece === 1) piece = 3;
-        if (to.r === 7 && piece === 2) piece = 4;
-        board[to.r][to.c] = piece; board[from.r][from.c] = 0;
-        if (move.isJump) board[move.removeR][move.removeC] = 0;
-
-        if (externalChainState) {
-            isChainJumping = true; selectedPiece = { r: to.r, c: to.c }; validMoves = []; 
-        } else {
-            isChainJumping = false; selectedPiece = null; validMoves = []; turn = turn === 1 ? 2 : 1;
-        }
-        updateStatusDisplay(); createBoardGrid(); checkWinCondition();
-    }
-
-    function checkWinCondition() {
-        let redCount = 0, blackCount = 0;
-        for (let r = 0; r < 8; r++) {
-            for (let c = 0; c < 8; c++) {
-                if (board[r][c] === 1 || board[r][c] === 3) redCount++;
-                if (board[r][c] === 2 || board[r][c] === 4) blackCount++;
-            }
-        }
-        if (redCount === 0) showWinModal("🏆 Black Wins!", "Red has been completely wiped off the board.");
-        else if (blackCount === 0) showWinModal("🏆 Red Wins!", "Black has been completely wiped off the board.");
-    }
-
-    function showWinModal(title, text) {
-        document.getElementById('win-title').innerText = title;
-        document.getElementById('win-text').innerText = text;
-        document.getElementById('win-modal').style.display = 'flex';
-    }
-    function closeModal() { document.getElementById('win-modal').style.display = 'none'; }
-
-    function resetLocalBoard() {
-        initializeNewBoardArray();
-        turn = 1; selectedPiece = null; validMoves = []; closeModal(); updateStatusDisplay(); createBoardGrid();
-    }
-
-    function requestReset() {
-        if (confirm("Are you sure you want to clear the board and reset the match?")) {
-            socket.emit('send-chat', "🔄 Has requested a board reset layout!");
-            resetLocalBoard(); socket.emit('send-move', { isResetRequest: true });
-        }
-    }
-</script>
-</body>
-</html>
