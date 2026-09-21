@@ -74,7 +74,6 @@
     <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
-    <!-- LOBBY SCREEN -->
     <div id="lobby-container">
         <h2>⚔️ Checkers Multiplayer Arena</h2>
         <p style="color: #b5b5c3; font-size: 13px; margin-bottom: 15px;">Enter a room code to open or join a synchronized arena matchmaking channel:</p>
@@ -83,7 +82,6 @@
         <button id="join-btn" onclick="joinRoom()">Enter Arena Room</button>
     </div>
 
-    <!-- MAIN GAMEPLAY SCREEN -->
     <div id="game-container">
         <div id="role-info">Establishing connection...</div>
         <div id="status">Waiting for opponent to connect <span id="user-count-badge">🟢 Live: 1</span></div>
@@ -117,12 +115,15 @@
     </div>
 <script>
     const socket = io();
-    let myRole = 0; let turn = 1;   
+    let myRole = 0; let turn = 1; let mySpecNum = null;  
     let selectedPiece = null; let validMoves = [];
     let board = [];
     let isChainJumping = false;
     let blockedUsersList = [];
     let isChatGloballyMuted = false;
+
+    // Cache message logs so unblocking dynamically restores hidden items
+    let allMessageHistoryCache = []; 
 
     function initializeNewBoardArray() {
         board = [];
@@ -151,12 +152,13 @@
         socket.emit('join-room', input);
     }
 
-    socket.on('assign-role', (role) => {
-        myRole = role;
+    socket.on('assign-role', (data) => {
+        myRole = data.role;
+        mySpecNum = data.specNum;
         const roleInfo = document.getElementById('role-info');
-        if (role === 1) roleInfo.innerHTML = "Your Arena Role: <span style='color:#ff6b6b;'>RED (Player 1)</span>";
-        else if (role === 2) roleInfo.innerHTML = "Your Arena Role: <span style='color:#a2a2a2;'>BLACK (Player 2)</span>";
-        else roleInfo.innerHTML = "Your Arena Role: <span style='color:#4ea8de;'>SPECTATOR Viewpoint</span>";
+        if (myRole === 1) roleInfo.innerHTML = "Your Arena Role: <span style='color:#ff6b6b;'>RED (Player 1)</span>";
+        else if (myRole === 2) roleInfo.innerHTML = "Your Arena Role: <span style='color:#a2a2a2;'>BLACK (Player 2)</span>";
+        else roleInfo.innerHTML = `Your Arena Role: <span style='color:#4ea8de;'>SPECTATOR ${mySpecNum}</span>`;
         updateStatusDisplay(); createBoardGrid();
     });
 
@@ -192,17 +194,22 @@
         }
     }
 
+    // FIXED: Toggle click now smoothly handles blocking AND unblocking instantly
     function toggleBlockUserLabel(userLabel) {
         if (userLabel === "System") return;
+        
+        let myName = myRole === 1 ? "Red" : myRole === 2 ? "Black" : `Spectator ${mySpecNum}`;
+        if (userLabel === myName) return; // Can't block yourself
+
         if (blockedUsersList.includes(userLabel)) {
             blockedUsersList = blockedUsersList.filter(u => u !== userLabel);
             alert(`🔓 Unblocked messages from: ${userLabel}`);
         } else {
             if (confirm(`Block all incoming messages from ${userLabel}?`)) {
                 blockedUsersList.push(userLabel);
-                createBoardGrid();
             }
         }
+        rebuildChatWindowFromCache();
     }
 
     function appendMessageToBox(user, text) {
@@ -214,10 +221,18 @@
         if (user === "System") { 
             messageRow.innerHTML = `<span class="chat-system">⚙️ ${text}</span>`; 
         } else {
+            let isSpec = user.startsWith("Spectator");
             let styleClass = user === "Red" ? "chat-red" : user === "Black" ? "chat-black" : "chat-spec";
-            messageRow.innerHTML = `<span class="${styleClass} clickable-sender" onclick="toggleBlockUserLabel('${user}')" title="Click to block">${user}:</span> ${text}`;
+            messageRow.innerHTML = `<span class="${styleClass} clickable-sender" onclick="toggleBlockUserLabel('${user}')" title="Click to block/unblock">${user}:</span> ${text}`;
         }
         chatBox.appendChild(messageRow); chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function rebuildChatWindowFromCache() {
+        document.getElementById('chat-box').innerHTML = '';
+        allMessageHistoryCache.forEach(msg => {
+            appendMessageToBox(msg.user, msg.text);
+        });
     }
 
     function sendChatMessage(e) {
@@ -230,6 +245,7 @@
     }
 
     socket.on('receive-chat', (data) => {
+        allMessageHistoryCache.push(data); // Save everything to cache
         appendMessageToBox(data.user, data.text);
     });
 
