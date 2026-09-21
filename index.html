@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multiplayer Checkers</title>
+    <style>
+        body { font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #f0f0f0; }
+        #board { display: grid; grid-template-columns: repeat(8, 45px); grid-template-rows: repeat(8, 45px); border: 4px solid #333; }
+        @media(min-width: 600px) { #board { grid-template-columns: repeat(8, 60px); grid-template-rows: repeat(8, 60px); } }
+        .square { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
+        .light { background-color: #f0d9b5; }
+        .dark { background-color: #b58863; }
+        .piece { width: 80%; height: 80%; border-radius: 50%; cursor: pointer; display: flex; justify-content: center; align-items: center; font-weight: bold; color: white; box-shadow: inset 0 0 10px rgba(0,0,0,0.5); }
+        .red-piece { background-color: #cc0000; }
+        .black-piece { background-color: #1a1a1a; }
+        .selected { border: 3px solid #76ff03; box-sizing: border-box; }
+        .highlight { background-color: #bbf7d0 !important; cursor: pointer; }
+        #status, #role { margin: 10px; font-size: 20px; font-weight: bold; }
+    </style>
+    <!-- Include Socket.io Client Library -->
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+
+    <div id="role">Connecting...</div>
+    <div id="status">Waiting for players</div>
+    <div id="board"></div>
+
+<script>
+    const socket = io();
+    const boardElement = document.getElementById('board');
+    const statusElement = document.getElementById('status');
+    const roleElement = document.getElementById('role');
+    
+    let myRole = 0; // 1 = Red, 2 = Black, 0 = Spectator
+    let turn = 1;   // 1 = Red's turn, 2 = Black's turn
+
+    let board = [, [2,0,2,0,2,0,2,0], [0,2,0,2,0,2,0,2],
+, [0,0,0,0,0,0,0,0],
+, [0,1,0,1,0,1,0,1], [1,0,1,0,1,0,1,0]
+    ];
+
+    let selectedPiece = null;
+    let validMoves = [];
+
+    socket.on('assign-role', (role) => {
+        myRole = role;
+        if (role === 1) roleElement.innerText = "You are: RED (Player 1)";
+        else if (role === 2) roleElement.innerText = "You are: BLACK (Player 2)";
+        else roleElement.innerText = "Room Full. You are a Spectator.";
+        updateStatusText();
+    });
+
+    socket.on('receive-move', (moveData) => {
+        executeMoveOnBoard(moveData.from, moveData.to, moveData.move);
+    });
+
+    function updateStatusText() {
+        if (turn === 1) statusElement.innerText = "Red's Turn" + (myRole === 1 ? " (Your Turn)" : "");
+        else statusElement.innerText = "Black's Turn" + (myRole === 2 ? " (Your Turn)" : "");
+    }
+
+    function createBoard() {
+        boardElement.innerHTML = '';
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                const square = document.createElement('div');
+                square.classList.add('square', (r + c) % 2 === 0 ? 'light' : 'dark');
+                
+                const pieceType = board[r][c];
+                if (pieceType !== 0) {
+                    const piece = document.createElement('div');
+                    piece.classList.add('piece', pieceType === 1 || pieceType === 3 ? 'red-piece' : 'black-piece');
+                    if (pieceType === 3 || pieceType === 4) piece.innerText = 'K';
+                    if (selectedPiece && selectedPiece.r === r && selectedPiece.c === c) piece.classList.add('selected');
+
+                    piece.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        // ONLY allow clicking if it is your turn and your piece color
+                        if (turn === myRole && ((myRole === 1 && (pieceType===1||pieceType===3)) || (myRole === 2 && (pieceType===2||pieceType===4)))) {
+                            selectedPiece = { r, c };
+                            validMoves = calculateMoves(r, c);
+                            createBoard();
+                        }
+                    });
+                    square.appendChild(piece);
+                }
+
+                if (validMoves.some(m => m.toR === r && m.toC === c)) {
+                    square.classList.add('highlight');
+                    square.addEventListener('click', () => {
+                        const move = validMoves.find(m => m.toR === r && m.toC === c);
+                        const from = { r: selectedPiece.r, c: selectedPiece.c };
+                        const to = { r, c };
+                        
+                        // Local update
+                        executeMoveOnBoard(from, to, move);
+                        // Send update to opponent
+                        socket.emit('send-move', { from, to, move });
+                    });
+                }
+                boardElement.appendChild(square);
+            }
+        }
+    }
+
+    function calculateMoves(r, c) {
+        const piece = board[r][c];
+        const moves = [];
+        let directions = [];
+        if (piece === 1) directions = [[-1, -1], [-1, 1]];
+        if (piece === 2) directions = [[1, -1], [1, 1]];
+        if (piece === 3 || piece === 4) directions = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
+
+        directions.forEach(([dr, dc]) => {
+            const nextR = r + dr, nextC = c + dc;
+            if (nextR >= 0 && nextR < 8 && nextC >= 0 && nextC < 8) {
+                if (board[nextR][nextC] === 0) {
+                    moves.push({ toR: nextR, toC: nextC, isJump: false });
+                } else {
+                    const enemy = board[nextR][nextC];
+                    if ((turn === 1 && (enemy === 2 || enemy === 4)) || (turn === 2 && (enemy === 1 || enemy === 3))) {
+                        const jumpR = nextR + dr, jumpC = nextC + dc;
+                        if (jumpR >= 0 && jumpR < 8 && jumpC >= 0 && jumpC < 8 && board[jumpR][jumpC] === 0) {
+                            moves.push({ toR: jumpR, toC: jumpC, isJump: true, removeR: nextR, removeC: nextC });
+                        }
+                    }
+                }
+            }
+        });
+        return moves;
+    }
+
+    function executeMoveOnBoard(from, to, move) {
+        let piece = board[from.r][from.c];
+        if (to.r === 0 && piece === 1) piece = 3;
+        if (to.r === 7 && piece === 2) piece = 4;
+
+        board[to.r][to.c] = piece;
+        board[from.r][from.c] = 0;
+        if (move.isJump) board[move.removeR][move.removeC] = 0;
+
+        selectedPiece = null;
+        validMoves = [];
+        turn = turn === 1 ? 2 : 1;
+        updateStatusText();
+        createBoard();
+    }
+
+    createBoard();
+</script>
+</body>
+</html>
