@@ -6,52 +6,69 @@
     <title>Multiplayer Checkers Lobby & Chat</title>
     <style>
         body { font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #f0f0f0; margin: 0; padding: 10px; }
+        
+        /* Lobby Overlay Setup */
         #lobby-container { margin-top: 50px; text-align: center; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         #room-input { padding: 10px; font-size: 16px; width: 200px; border: 2px solid #ccc; border-radius: 4px; }
         #join-btn { padding: 10px 20px; font-size: 16px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin-left: 10px; }
+        
+        /* Main Application Container Placement */
         #game-container { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 900px; }
         .app-layout { display: flex; flex-direction: column; gap: 20px; width: 100%; margin-top: 10px; }
         @media(min-width: 750px) { .app-layout { flex-direction: row; justify-content: center; } }
-        #board { display: grid; grid-template-columns: repeat(8, 40px); grid-template-rows: repeat(8, 40px); border: 4px solid #333; background-color: #b58863; }
-        @media(min-width: 500px) { #board { grid-template-columns: repeat(8, 55px); grid-template-rows: repeat(8, 55px); } }
+        
+        /* 8x8 Board Grid Dimensions */
+        #board { display: grid; grid-template-columns: repeat(8, 45px); grid-template-rows: repeat(8, 45px); border: 4px solid #333; background-color: #b58863; }
+        @media(min-width: 550px) { #board { grid-template-columns: repeat(8, 60px); grid-template-rows: repeat(8, 60px); } }
+        
         .square { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
         .light { background-color: #f0d9b5; }
         .dark { background-color: #b58863; }
-        .piece { width: 80%; height: 80%; border-radius: 50%; cursor: pointer; display: flex; justify-content: center; align-items: center; font-weight: bold; color: white; box-shadow: inset 0 0 10px rgba(0,0,0,0.5); }
+        
+        /* Tokens Styling */
+        .piece { width: 80%; height: 80%; border-radius: 50%; cursor: pointer; display: flex; justify-content: center; align-items: center; font-weight: bold; color: white; box-shadow: inset 0 0 8px rgba(0,0,0,0.6); }
         .red-piece { background-color: #cc0000; }
         .black-piece { background-color: #1a1a1a; }
         .selected { border: 3px solid #76ff03; box-sizing: border-box; }
-        .highlight { background-color: #bbf7d0 !important; cursor: pointer; }
-        #chat-container { width: 100%; max-width: 320px; background: white; border: 2px solid #333; border-radius: 4px; display: flex; flex-direction: column; height: 350px; }
+        .highlight { background-color: #bbf7d0 !important; cursor: pointer; border: 2px dashed #28a745; box-sizing: border-box; }
+        
+        /* Chat Area Panel Styles */
+        #chat-container { width: 100%; max-width: 320px; background: white; border: 2px solid #333; border-radius: 4px; display: flex; flex-direction: column; height: 380px; }
         #chat-box { flex: 1; padding: 10px; overflow-y: auto; font-size: 14px; background: #fafafa; }
-        .chat-row { margin-bottom: 8px; line-height: 1.4; }
+        .chat-row { margin-bottom: 8px; line-height: 1.4; word-break: break-all; }
         .chat-system { color: #6c757d; font-style: italic; }
         .chat-red { color: #cc0000; font-weight: bold; }
         .chat-black { color: #1a1a1a; font-weight: bold; }
         .chat-spec { color: #007bff; font-weight: bold; }
         #chat-form { display: flex; border-top: 1px solid #ccc; }
         #chat-input { flex: 1; padding: 10px; border: none; font-size: 14px; }
-        #chat-send { padding: 10px; background: #28a745; color: white; border: none; cursor: pointer; }
+        #chat-send { padding: 10px; background: #28a745; color: white; border: none; cursor: pointer; font-weight: bold; }
+        
         #status, #role-info { font-size: 18px; font-weight: bold; margin: 5px; text-align: center; }
         #reset-btn { margin: 10px; padding: 8px 16px; background-color: #dc3545; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; display: inline-block; }
+        
+        /* Modal Popup Frame */
         #win-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 100; }
         .modal-content { background-color: white; padding: 30px; border-radius: 8px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.3); max-width: 400px; width: 85%; }
-        .modal-content h2 { margin-top: 0; color: #28a745; font-size: 28px; }
-        .modal-content p { font-size: 18px; margin: 15px 0; }
     </style>
     <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
+
+    <!-- LOBBY SCREEN -->
     <div id="lobby-container">
         <h2>🌐 Online Checkers Room Entry</h2>
         <p>Enter a room code to create or join a private game match session:</p>
         <input type="text" id="room-input" placeholder="e.g., Room123" maxlength="15">
         <button id="join-btn" onclick="joinRoom()">Enter Room</button>
     </div>
+
+    <!-- MAIN GAMEPLAY SCREEN -->
     <div id="game-container">
         <div id="role-info">Connecting...</div>
         <div id="status">Waiting for Opponent...</div>
         <button id="reset-btn" onclick="requestReset()">🔄 Reset Match</button>
+        
         <div class="app-layout">
             <div id="board"></div>
             <div id="chat-container">
@@ -63,16 +80,23 @@
             </div>
         </div>
     </div>
+
+    <!-- WINDOW POPUP -->
     <div id="win-modal">
         <div class="modal-content">
             <h2 id="win-title">🏆 Victory!</h2>
             <p id="win-text">Red player wins the match!</p>
-            <button id="join-btn" style="margin: 0;" onclick="closeModal()">Close Window</button>
+            <button id="join-btn" style="margin: 0; background-color: #6c757d;" onclick="closeModal()">Close Window</button>
         </div>
     </div>
 <script>
     const socket = io();
-    let myRole = 0; let turn = 1;
+    let myRole = 0; 
+    let turn = 1;   
+    let selectedPiece = null; 
+    let validMoves = [];
+
+    // Explicit board map matrix structure: 1=Red, 2=Black, 0=Empty
     let board = [,
  ,
  ,
@@ -82,7 +106,6 @@
  ,
         [1, 0, 1, 0, 1, 0, 1, 0]
     ];
-    let selectedPiece = null; let validMoves = [];
 
     function joinRoom() {
         const input = document.getElementById('room-input').value;
@@ -98,31 +121,38 @@
         if (role === 1) roleInfo.innerHTML = "Your Piece Identity: <span style='color:#cc0000;'>RED (Player 1)</span>";
         else if (role === 2) roleInfo.innerHTML = "Your Piece Identity: <span style='color:#1a1a1a;'>BLACK (Player 2)</span>";
         else roleInfo.innerHTML = "Your Piece Identity: <span style='color:#007bff;'>SPECTATOR Viewer Mode</span>";
-        updateStatusDisplay(); createBoardGrid();
+        updateStatusDisplay(); 
+        createBoardGrid();
     });
 
     socket.on('receive-move', (moveData) => {
-        if (moveData.isResetRequest) { resetLocalBoard(); } 
-        else { executeBoardMove(moveData.from, moveData.to, moveData.move); }
+        if (moveData.isResetRequest) { 
+            resetLocalBoard(); 
+        } else { 
+            executeBoardMove(moveData.from, moveData.to, moveData.move); 
+        }
     });
 
     socket.on('receive-chat', (data) => {
         const chatBox = document.getElementById('chat-box');
         const messageRow = document.createElement('div');
         messageRow.classList.add('chat-row');
-        if (data.user === "System") { messageRow.innerHTML = `<span class="chat-system">⚙️ ${data.text}</span>`; } 
-        else {
+        if (data.user === "System") { 
+            messageRow.innerHTML = `<span class="chat-system">⚙️ ${data.text}</span>`; 
+        } else {
             let styleClass = data.user === "Red" ? "chat-red" : data.user === "Black" ? "chat-black" : "chat-spec";
             messageRow.innerHTML = `<span class="${styleClass}">${data.user}:</span> ${data.text}`;
         }
-        chatBox.appendChild(messageRow); chatBox.scrollTop = chatBox.scrollHeight;
+        chatBox.appendChild(messageRow); 
+        chatBox.scrollTop = chatBox.scrollHeight;
     });
 
     function sendChatMessage(e) {
         e.preventDefault();
         const input = document.getElementById('chat-input');
         if (!input.value.trim()) return;
-        socket.emit('send-chat', input.value); input.value = '';
+        socket.emit('send-chat', input.value); 
+        input.value = '';
     }
 
     function updateStatusDisplay() {
@@ -132,31 +162,39 @@
     }
 
     function createBoardGrid() {
-        const boardElement = document.getElementById('board'); boardElement.innerHTML = '';
+        const boardElement = document.getElementById('board'); 
+        boardElement.innerHTML = '';
         for (let r = 0; r < 8; r++) {
             for (let c = 0; c < 8; c++) {
                 const square = document.createElement('div');
                 square.classList.add('square', (r + c) % 2 === 0 ? 'light' : 'dark');
+                
                 const pieceType = board[r][c];
                 if (pieceType !== 0) {
                     const piece = document.createElement('div');
                     piece.classList.add('piece', pieceType === 1 || pieceType === 3 ? 'red-piece' : 'black-piece');
                     if (pieceType === 3 || pieceType === 4) piece.innerText = 'K';
                     if (selectedPiece && selectedPiece.r === r && selectedPiece.c === c) piece.classList.add('selected');
+                    
                     piece.addEventListener('click', (e) => {
                         e.stopPropagation();
                         if (turn === myRole && ((myRole === 1 && (pieceType===1||pieceType===3)) || (myRole === 2 && (pieceType===2||pieceType===4)))) {
-                            selectedPiece = { r, c }; validMoves = calculatePieceMoves(r, c); createBoardGrid();
+                            selectedPiece = { r, c }; 
+                            validMoves = calculatePieceMoves(r, c); 
+                            createBoardGrid();
                         }
                     });
                     square.appendChild(piece);
                 }
+                
                 if (validMoves.some(m => m.toR === r && m.toC === c)) {
                     square.classList.add('highlight');
                     square.addEventListener('click', () => {
                         const move = validMoves.find(m => m.toR === r && m.toC === c);
-                        const from = { r: selectedPiece.r, c: selectedPiece.c }; const to = { r, c };
-                        executeBoardMove(from, to, move); socket.emit('send-move', { from, to, move });
+                        const from = { r: selectedPiece.r, c: selectedPiece.c }; 
+                        const to = { r, c };
+                        executeBoardMove(from, to, move); 
+                        socket.emit('send-move', { from, to, move });
                     });
                 }
                 boardElement.appendChild(square);
@@ -165,15 +203,19 @@
     }
 
     function calculatePieceMoves(r, c) {
-        const piece = board[r][c]; const moves = []; let directions = [];
+        const piece = board[r][c]; 
+        const moves = []; 
+        let directions = [];
         if (piece === 1) directions = [[-1, -1], [-1, 1]];
         if (piece === 2) directions = [[1, -1], [1, 1]];
         if (piece === 3 || piece === 4) directions = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
+        
         directions.forEach(([dr, dc]) => {
             const nextR = r + dr, nextC = c + dc;
             if (nextR >= 0 && nextR < 8 && nextC >= 0 && nextC < 8) {
-                if (board[nextR][nextC] === 0) { moves.push({ toR: nextR, toC: nextC, isJump: false }); } 
-                else {
+                if (board[nextR][nextC] === 0) { 
+                    moves.push({ toR: nextR, toC: nextC, isJump: false }); 
+                } else {
                     const enemy = board[nextR][nextC];
                     if ((turn === 1 && (enemy === 2 || enemy === 4)) || (turn === 2 && (enemy === 1 || enemy === 3))) {
                         const jumpR = nextR + dr, jumpC = nextC + dc;
@@ -191,10 +233,15 @@
         let piece = board[from.r][from.c];
         if (to.r === 0 && piece === 1) piece = 3;
         if (to.r === 7 && piece === 2) piece = 4;
-        board[to.r][to.c] = piece; board[from.r][from.c] = 0;
+        board[to.r][to.c] = piece; 
+        board[from.r][from.c] = 0;
         if (move.isJump) board[move.removeR][move.removeC] = 0;
-        selectedPiece = null; validMoves = []; turn = turn === 1 ? 2 : 1;
-        updateStatusDisplay(); createBoardGrid(); checkWinCondition();
+        selectedPiece = null; 
+        validMoves = []; 
+        turn = turn === 1 ? 2 : 1;
+        updateStatusDisplay(); 
+        createBoardGrid(); 
+        checkWinCondition();
     }
 
     function checkWinCondition() {
@@ -218,17 +265,24 @@
     function closeModal() { document.getElementById('win-modal').style.display = 'none'; }
 
     function resetLocalBoard() {
-        board = [, [2, 0, 2, 0, 2, 0, 2, 0], [0, 2, 0, 2, 0, 2, 0, 2],
-, [0, 0, 0, 0, 0, 0, 0, 0],
-, [0, 1, 0, 1, 0, 1, 0, 1], [1, 0, 1, 0, 1, 0, 1, 0]
+        board = [,
+ ,
+ ,
+ ,
+ ,
+ ,
+ ,
+            [1, 0, 1, 0, 1, 0, 1, 0]
         ];
-        turn = 1; selectedPiece = null; validMoves = []; closeModal(); updateStatusDisplay(); createBoardGrid();
+        turn = 1; selectedPiece = null; validMoves = []; 
+        closeModal(); updateStatusDisplay(); createBoardGrid();
     }
 
     function requestReset() {
         if (confirm("Are you sure you want to clear the board and reset the match?")) {
             socket.emit('send-chat', "🔄 Has requested a board reset layout!");
-            resetLocalBoard(); socket.emit('send-move', { isResetRequest: true });
+            resetLocalBoard(); 
+            socket.emit('send-move', { isResetRequest: true });
         }
     }
 </script>
