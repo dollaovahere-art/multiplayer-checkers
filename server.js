@@ -18,8 +18,11 @@ io.on('connection', (socket) => {
         socket.join(currentRoom);
 
         if (!rooms[currentRoom]) {
-            rooms[currentRoom] = { red: null, black: null };
+            rooms[currentRoom] = { red: null, black: null, userCount: 0 };
         }
+
+        // Increment the total room user counter
+        rooms[currentRoom].userCount++;
 
         let assignedRole = 0; // Spectator
 
@@ -33,6 +36,9 @@ io.on('connection', (socket) => {
 
         socket.emit('assign-role', assignedRole);
         
+        // Broadcast the updated count to everyone in this specific room
+        io.to(currentRoom).emit('update-user-count', rooms[currentRoom].userCount);
+        
         let identity = assignedRole === 1 ? "Red (Player 1)" : assignedRole === 2 ? "Black (Player 2)" : "A Spectator";
         io.to(currentRoom).emit('receive-chat', { user: "System", text: `${identity} has joined the room.` });
     });
@@ -43,7 +49,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    // FIXED: This now relays the message to everyone in the room perfectly
     socket.on('send-chat', (messageText) => {
         if (currentRoom) {
             let senderRole = "Spectator";
@@ -56,6 +61,10 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
         if (currentRoom && rooms[currentRoom]) {
+            // Decrement the total room user counter safely
+            rooms[currentRoom].userCount--;
+            if (rooms[currentRoom].userCount < 0) rooms[currentRoom].userCount = 0;
+
             if (rooms[currentRoom].red === socket.id) {
                 rooms[currentRoom].red = null;
                 io.to(currentRoom).emit('receive-chat', { user: "System", text: "Red Player left. Slot is vacant!" });
@@ -63,8 +72,12 @@ io.on('connection', (socket) => {
                 rooms[currentRoom].black = null;
                 io.to(currentRoom).emit('receive-chat', { user: "System", text: "Black Player left. Slot is vacant!" });
             }
-            if (!rooms[currentRoom].red && !rooms[currentRoom].black) {
+            
+            // Broadcast the newly updated count or clean up the room if empty
+            if (rooms[currentRoom].userCount === 0 || (!rooms[currentRoom].red && !rooms[currentRoom].black && rooms[currentRoom].userCount <= 0)) {
                 delete rooms[currentRoom];
+            } else {
+                io.to(currentRoom).emit('update-user-count', rooms[currentRoom].userCount);
             }
         }
     });

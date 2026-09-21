@@ -5,26 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Multiplayer Checkers Arena</title>
     <style>
-        /* Fit everything into a static, scroll-free window */
         html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #1e1e24; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #f5f5f7; }
         body { display: flex; flex-direction: column; align-items: center; box-sizing: border-box; padding: 5px; }
-        
         h2 { margin: 5px 0; color: #4ea8de; text-shadow: 0 2px 4px rgba(0,0,0,0.5); font-size: 20px; text-align: center; }
         
-        /* Lobby Screen Overlay */
         #lobby-container { margin-top: 80px; text-align: center; background: #2a2a35; padding: 35px; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); border: 1px solid #3a3a4a; max-width: 400px; width: 90%; display: block; }
         #room-input { padding: 12px; font-size: 16px; width: 220px; border: 2px solid #4a4a5a; background: #1e1e24; color: white; border-radius: 6px; outline: none; }
-        #room-input:focus { border-color: #4ea8de; }
         #join-btn { padding: 12px 24px; font-size: 16px; background-color: #0077b6; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
         
-        /* Dynamic Game Containment Frame */
         #game-container { display: none; flex-direction: column; align-items: center; width: 100%; height: 100%; box-sizing: border-box; }
-        
-        /* Fluid Layout Structure (Vertical on Mobile, Horizontal on Desktop) */
         .app-layout { display: flex; flex-direction: column; gap: 10px; width: 100%; flex: 1; min-height: 0; align-items: center; justify-content: center; padding-bottom: 10px; }
         @media(min-width: 750px) { .app-layout { flex-direction: row; align-items: stretch; max-width: 1100px; height: 75vh; } }
         
-        /* Mathematically Resizing Board (Scales cleanly based on mobile screen height) */
         #board { display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr); border: 6px solid #3d2314; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); touch-action: manipulation; width: 82vw; height: 82vw; max-width: 340px; max-height: 340px; }
         @media(min-height: 700px) and (max-width: 749px) { #board { width: 88vw; height: 88vw; max-width: 400px; max-height: 400px; } }
         @media(min-width: 750px) { #board { width: 70vh; height: 70vh; max-width: 580px; max-height: 580px; border-width: 12px; } }
@@ -33,39 +25,47 @@
         .light { background-color: #eadeca; background-image: radial-gradient(rgba(0,0,0,0.03) 1px, transparent 0); background-size: 6px 6px; }
         .dark { background-color: #704214; box-shadow: inset 0 0 8px rgba(0,0,0,0.2); }
         
-        /* Premium Floating Tokens */
         .piece { width: 84%; height: 84%; border-radius: 50%; cursor: pointer; display: flex; justify-content: center; align-items: center; font-weight: 900; box-shadow: 0 4px 6px rgba(0,0,0,0.5), inset 0 1px 2px rgba(255,255,255,0.3); touch-action: manipulation; -webkit-tap-highlight-color: transparent; position: relative; }
         .red-piece { background: radial-gradient(circle at 35% 35%, #ff4d4d, #b30000); border: 1px solid #800000; }
         .black-piece { background: radial-gradient(circle at 35% 35%, #4a4a4a, #111111); border: 1px solid #000000; }
-        
         .piece.king::before { content: '👑'; font-size: 16px; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.6)); color: #ffd700; }
         @media(min-width: 750px) { .piece.king::before { font-size: 22px; } }
         
         .selected { transform: translateY(-2px) scale(1.03); box-shadow: 0 6px 12px rgba(0,0,0,0.6), 0 0 10px #76ff03; border-color: #76ff03; z-index: 10; }
         .highlight { background-color: #2a5a3a !important; cursor: pointer; border: 2px dashed #76ff03; box-sizing: border-box; }
         
-        /* Auto-Sizing Responsive Chat Box Panel */
         #chat-container { display: flex; flex-direction: column; background: #2a2a35; border: 2px solid #3a3a4a; border-radius: 8px; box-shadow: 0 6px 16px rgba(0,0,0,0.3); width: 92vw; flex: 1; min-height: 0; max-height: 220px; }
         @media(min-width: 750px) { #chat-container { width: 320px; max-height: 70vh; height: 100%; flex: none; } }
         
+        .chat-header-bar { display: flex; justify-content: flex-end; padding: 4px 8px; background-color: #23232d; border-bottom: 1px solid #3a3a4a; border-radius: 6px 6px 0 0; }
+        .toggle-chat-btn { font-size: 11px; background: #4a4a5a; color: #fff; border: none; padding: 3px 8px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .toggle-chat-btn.disabled-state { background: #e63946; }
+        
         #chat-box { flex: 1; padding: 8px; overflow-y: auto; font-size: 13px; background: #1e1e24; margin: 5px; border: 1px solid #2d2d3d; border-radius: 4px; min-height: 0; }
+        #chat-box.hidden-stream { display: none; }
+        #chat-disabled-placeholder { display: none; flex: 1; justify-content: center; align-items: center; color: #6c757d; font-style: italic; font-size: 13px; background: #1e1e24; margin: 5px; border: 1px solid #2d2d3d; border-radius: 4px; }
+        #chat-disabled-placeholder.active-placeholder { display: flex; }
+        
         .chat-row { margin-bottom: 5px; line-height: 1.3; word-break: break-all; }
         .chat-system { color: #a8dadc; font-style: italic; font-size: 12px; }
+        
+        .clickable-sender { cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+        .clickable-sender:hover { color: #ffd700 !important; }
         .chat-red { color: #ff6b6b; font-weight: bold; }
         .chat-black { color: #a2a2a2; font-weight: bold; }
         .chat-spec { color: #4ea8de; font-weight: bold; }
         
         #chat-form { display: flex; border-top: 1px solid #3a3a4a; background: #2a2a35; padding: 4px; align-items: center; }
+        #chat-form.muted-form { opacity: 0.4; pointer-events: none; }
         #chat-input { padding: 8px; border: 1px solid #4a4a5a; background: #1e1e24; color: white; font-size: 13px; flex: 1; border-radius: 4px; outline: none; min-width: 0; }
         #chat-input:focus { border-color: #4ea8de; }
         #chat-send { padding: 8px 14px; background: #2a9d8f; color: white; border: none; cursor: pointer; font-weight: bold; border-radius: 4px; margin-left: 5px; font-size: 13px; }
         
-        /* Compact Control Strip Metrics */
         #role-info { font-size: 13px; color: #b5b5c3; margin: 1px; }
         #status { font-size: 16px; font-weight: bold; margin: 2px; color: #ffffff; text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
         #reset-btn { margin: 4px 0; padding: 6px 14px; background-color: #e63946; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px; box-shadow: 0 3px 6px rgba(230,57,70,0.2); }
+        #user-count-badge { display: inline-block; background-color: #2a9d8f; color: white; padding: 3px 8px; border-radius: 20px; font-size: 11px; font-weight: bold; margin-left: 6px; vertical-align: middle; }
         
-        /* Win Popup Modal Overlay */
         #win-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.75); justify-content: center; align-items: center; z-index: 100; backdrop-filter: blur(2px); }
         .modal-content { background-color: #2a2a35; border: 2px solid #4ea8de; padding: 25px; border-radius: 12px; text-align: center; max-width: 350px; width: 80%; }
         .modal-content h2 { margin-top: 0; color: #2a9d8f; font-size: 26px; }
@@ -86,13 +86,20 @@
     <!-- MAIN GAMEPLAY SCREEN -->
     <div id="game-container">
         <div id="role-info">Establishing connection...</div>
-        <div id="status">Waiting for opponent to connect</div>
+        <div id="status">Waiting for opponent to connect <span id="user-count-badge">🟢 Live: 1</span></div>
         <button id="reset-btn" onclick="requestReset()">🔄 Reset Arena Match</button>
         
         <div class="app-layout">
             <div id="board"></div>
+            
             <div id="chat-container">
+                <div class="chat-header-bar">
+                    <button type="button" class="toggle-chat-btn" id="chat-toggle-btn" onclick="toggleGlobalChatMode()">💬 Mute Chat Box</button>
+                </div>
+                
                 <div id="chat-box"></div>
+                <div id="chat-disabled-placeholder">🔇 Chat Stream Turned Off</div>
+                
                 <form id="chat-form" onsubmit="sendChatMessage(event)">
                     <input type="text" id="chat-input" placeholder="Send trash-talk..." autocomplete="off" maxlength="100">
                     <button type="submit" id="chat-send">Send</button>
@@ -101,7 +108,6 @@
         </div>
     </div>
 
-    <!-- WINDOW POPUP OVERLAY -->
     <div id="win-modal">
         <div class="modal-content">
             <h2 id="win-title">🏆 Match Terminated</h2>
@@ -115,6 +121,8 @@
     let selectedPiece = null; let validMoves = [];
     let board = [];
     let isChainJumping = false;
+    let blockedUsersList = [];
+    let isChatGloballyMuted = false;
 
     function initializeNewBoardArray() {
         board = [];
@@ -152,19 +160,62 @@
         updateStatusDisplay(); createBoardGrid();
     });
 
+    socket.on('update-user-count', (count) => {
+        const badge = document.getElementById('user-count-badge');
+        if (badge) badge.innerText = `🟢 Live: ${count}`;
+    });
+
     socket.on('receive-move', (moveData) => {
         if (moveData.isResetRequest) { resetLocalBoard(); } 
         else { executeBoardMove(moveData.from, moveData.to, moveData.move, moveData.externalChainState); }
     });
 
+    function toggleGlobalChatMode() {
+        isChatGloballyMuted = !isChatGloballyMuted;
+        const btn = document.getElementById('chat-toggle-btn');
+        const box = document.getElementById('chat-box');
+        const placeholder = document.getElementById('chat-disabled-placeholder');
+        const form = document.getElementById('chat-form');
+
+        if (isChatGloballyMuted) {
+            btn.innerText = "🔊 Turn On Chat";
+            btn.classList.add('disabled-state');
+            box.classList.add('hidden-stream');
+            placeholder.classList.add('active-placeholder');
+            form.classList.add('muted-form');
+        } else {
+            btn.innerText = "Mute Chat Box";
+            btn.classList.remove('disabled-state');
+            box.classList.remove('hidden-stream');
+            placeholder.classList.remove('active-placeholder');
+            form.classList.remove('muted-form');
+        }
+    }
+
+    function toggleBlockUserLabel(userLabel) {
+        if (userLabel === "System") return;
+        if (blockedUsersList.includes(userLabel)) {
+            blockedUsersList = blockedUsersList.filter(u => u !== userLabel);
+            alert(`🔓 Unblocked messages from: ${userLabel}`);
+        } else {
+            if (confirm(`Block all incoming messages from ${userLabel}?`)) {
+                blockedUsersList.push(userLabel);
+                createBoardGrid();
+            }
+        }
+    }
+
     function appendMessageToBox(user, text) {
+        if (blockedUsersList.includes(user)) return;
         const chatBox = document.getElementById('chat-box');
         const messageRow = document.createElement('div');
         messageRow.classList.add('chat-row');
-        if (user === "System") { messageRow.innerHTML = `<span class="chat-system">⚙️ ${text}</span>`; } 
-        else {
+        
+        if (user === "System") { 
+            messageRow.innerHTML = `<span class="chat-system">⚙️ ${text}</span>`; 
+        } else {
             let styleClass = user === "Red" ? "chat-red" : user === "Black" ? "chat-black" : "chat-spec";
-            messageRow.innerHTML = `<span class="${styleClass}">${user}:</span> ${text}`;
+            messageRow.innerHTML = `<span class="${styleClass} clickable-sender" onclick="toggleBlockUserLabel('${user}')" title="Click to block">${user}:</span> ${text}`;
         }
         chatBox.appendChild(messageRow); chatBox.scrollTop = chatBox.scrollHeight;
     }
@@ -184,11 +235,15 @@
 
     function updateStatusDisplay() {
         const statText = document.getElementById('status');
+        let badgeHTML = ` <span id="user-count-badge">🟢 Live: 1</span>`;
+        const oldBadge = document.getElementById('user-count-badge');
+        if (oldBadge) badgeHTML = ` ${oldBadge.outerHTML}`;
+
         if (isChainJumping) {
-            statText.innerText = (turn === myRole) ? "Chaining Jumps! (CONTINUE CAPTURING)" : "Opponent is compounding jumps...";
+            statText.innerHTML = ((turn === myRole) ? "Chaining Jumps! (CONTINUE CAPTURING)" : "Opponent is compounding jumps...") + badgeHTML;
         } else {
-            if (turn === 1) statText.innerText = "Turn: Red's Move" + (myRole === 1 ? " (YOUR TURN)" : "");
-            else statText.innerText = "Turn: Black's Move" + (myRole === 2 ? " (YOUR TURN)" : "");
+            if (turn === 1) statText.innerHTML = ("Turn: Red's Move" + (myRole === 1 ? " (YOUR TURN)" : "")) + badgeHTML;
+            else statText.innerHTML = ("Turn: Black's Move" + (myRole === 2 ? " (YOUR TURN)" : "")) + badgeHTML;
         }
     }
     function createBoardGrid() {
@@ -239,8 +294,8 @@
     function calculatePieceMoves(r, c) {
         const piece = board[r][c]; const moves = []; let directions = [];
         if (piece === 1) directions = [[-1, -1], [-1, 1]];
-        if (piece === 2) directions = [[1, -1], [1, 1]]; 
-        if (piece === 3 || piece === 4) directions = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
+        if (piece === 2) directions = [[1, -1],]; 
+        if (piece === 3 || piece === 4) directions = [[-1, -1], [-1, 1], [1, -1],];
         
         directions.forEach(([dr, dc]) => {
             const nextR = r + dr, nextC = c + dc;
